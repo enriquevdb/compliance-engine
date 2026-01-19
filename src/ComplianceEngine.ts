@@ -6,6 +6,7 @@
 
 import { GateOrchestrator } from './gates/GateOrchestrator';
 import { FeeCalculator } from './calculation/FeeCalculator';
+import { RateTable } from './calculation/RateTable';
 import {
   TransactionInput,
   ComplianceResponse,
@@ -14,40 +15,114 @@ import {
   ExemptionData,
   TransactionStatus,
 } from './types';
+import { db } from './database/client';
+import { TransactionRepository } from './database/repositories/TransactionRepository';
+import { AuditRepository } from './database/repositories/AuditRepository';
 
 export class ComplianceEngine {
   private gateOrchestrator: GateOrchestrator;
-  private feeCalculator: FeeCalculator;
+  private feeCalculator: FeeCalculator | null = null;
+  private transactionRepository: TransactionRepository | null = null;
+  private auditRepository: AuditRepository | null = null;
+  private dbInitialized: Promise<void> | null = null;
 
-  constructor() {
+  constructor(enableDatabase: boolean = true) {
     this.gateOrchestrator = new GateOrchestrator();
-    this.feeCalculator = new FeeCalculator();
+    
+    // Initialize database and RateTable if enabled, then create FeeCalculator
+    if (enableDatabase) {
+      this.dbInitialized = this.initializeDatabase();
+    } else {
+      // Fallback: Initialize RateTable from hardcoded config (would need to keep rules.ts fallback)
+      // For now, we'll require database for RateTable initialization
+      // This ensures consistency - if database is disabled, RateTable won't work
+    }
+  }
+
+  /**
+   * Initialize database connection and repositories
+   */
+  private async initializeDatabase(): Promise<void> {
+    try {
+      await db.connect();
+      
+      // Initialize RateTable from database before creating FeeCalculator
+      await RateTable.initialize();
+      
+      // Create FeeCalculator with initialized RateTable
+      this.feeCalculator = new FeeCalculator(RateTable.getInstance());
+      
+      this.transactionRepository = new TransactionRepository();
+      this.auditRepository = new AuditRepository();
+    } catch (error) {
+      console.warn('Database not available, falling back to in-memory configuration:', error);
+      // If database fails, RateTable won't be initialized and FeeCalculator will fail
+      // This is intentional - we require database for rate loading
+      this.transactionRepository = null;
+      this.auditRepository = null;
+      this.feeCalculator = null;
+    }
+  }
+
+  /**
+   * Check if database is available
+   */
+  private isDatabaseEnabled(): boolean {
+    return this.transactionRepository !== null && this.auditRepository !== null;
   }
 
   /**
    * Process a transaction through the compliance engine
    */
   async process(transaction: TransactionInput, context?: Record<string, unknown>): Promise<ComplianceResponse> {
+    // Ensure database initialization completes (including RateTable)
+    if (this.dbInitialized) {
+      await this.dbInitialized;
+    }
+    
+    // Ensure FeeCalculator is available
+    if (!this.feeCalculator) {
+      throw new Error('FeeCalculator not initialized. Database connection required.');
+    }
+
     // Execute gates
     const gateExecution = await this.gateOrchestrator.execute(transaction, context);
 
     // If any gate failed, return failure response
+    let response: ComplianceResponse;
     if (!gateExecution.passed) {
-      return this.buildFailureResponse(transaction, gateExecution.results, gateExecution.auditTrail);
+      response = this.buildFailureResponse(transaction, gateExecution.results, gateExecution.auditTrail);
+    } else {
+      // Extract exemption data from ExemptionGate result
+      const exemptionGateResult = gateExecution.results.find((r) => r.gateName === 'ExemptionCheck');
+      const exemptionData = this.extractExemptionData(exemptionGateResult);
+
+      // Calculate fees
+      const calculationResult = this.feeCalculator!.calculateFees(transaction, exemptionData);
+
+      // Build success response matching Appendix A
+      response = this.buildSuccessResponse(transaction, gateExecution.results, calculationResult, [
+        ...gateExecution.auditTrail,
+        ...calculationResult.auditTrail,
+      ]);
     }
 
-    // Extract exemption data from ExemptionGate result
-    const exemptionGateResult = gateExecution.results.find((r) => r.gateName === 'ExemptionCheck');
-    const exemptionData = this.extractExemptionData(exemptionGateResult);
+    // Persist to database if enabled (await initialization if still in progress)
+    if (this.dbInitialized) {
+      await this.dbInitialized; // Ensure initialization completes
+    }
 
-    // Calculate fees
-    const calculationResult = this.feeCalculator.calculateFees(transaction, exemptionData);
+    if (this.isDatabaseEnabled()) {
+      try {
+        await this.transactionRepository!.saveTransaction(transaction, response);
+        await this.auditRepository!.saveAuditTrail(transaction.transactionId, response.auditTrail);
+      } catch (error) {
+        console.error('Failed to persist transaction to database:', error);
+        // Don't fail the request if persistence fails
+      }
+    }
 
-    // Build success response matching Appendix A
-    return this.buildSuccessResponse(transaction, gateExecution.results, calculationResult, [
-      ...gateExecution.auditTrail,
-      ...calculationResult.auditTrail,
-    ]);
+    return response;
   }
 
   /**
@@ -148,6 +223,18 @@ export class ComplianceEngine {
     }
 
     return exemptionGateResult.metadata.exemptionData as ExemptionData;
+  }
+
+  /**
+   * Close database connection
+   */
+  async close(): Promise<void> {
+    if (this.dbInitialized) {
+      await this.dbInitialized; // Ensure initialization completes
+    }
+    if (this.isDatabaseEnabled() || db.isConnected()) {
+      await db.close();
+    }
   }
 }
 

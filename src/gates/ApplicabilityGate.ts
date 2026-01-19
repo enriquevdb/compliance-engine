@@ -6,7 +6,7 @@
 import { BaseGate } from './IGate';
 import { GateResult } from './types';
 import { TransactionInput } from '../types';
-import { merchantMeetsThreshold, getMerchantVolume, MERCHANT_THRESHOLD } from '../config/rules';
+import { getMerchantVolume, getMerchantThreshold } from '../database/queries/configQueries';
 
 export class ApplicabilityGate extends BaseGate {
   protected getGateName(): string {
@@ -17,28 +17,29 @@ export class ApplicabilityGate extends BaseGate {
     const { merchantId } = transaction;
     const { state } = transaction.destination;
 
-    const volume = getMerchantVolume(merchantId, state);
-    const meetsThreshold = merchantMeetsThreshold(merchantId, state);
+    const volume = await getMerchantVolume(merchantId, state);
+    const threshold = await getMerchantThreshold(merchantId, state);
+    const meetsThreshold = volume >= threshold;
 
     if (meetsThreshold) {
       return this.createPassResult(
-        `Merchant above $100K threshold in ${state}`,
+        `Merchant above $${threshold.toLocaleString()} threshold in ${state}`,
         {
           merchantId,
           state,
           volume,
-          threshold: MERCHANT_THRESHOLD,
+          threshold,
         }
       );
     } else {
       return this.createFailResult(
-        `Merchant volume ($${volume.toLocaleString()}) below threshold ($${MERCHANT_THRESHOLD.toLocaleString()}) in ${state}`,
+        `Merchant volume ($${volume.toLocaleString()}) below threshold ($${threshold.toLocaleString()}) in ${state}`,
         'VALIDATION',
         {
           merchantId,
           state,
           volume,
-          threshold: MERCHANT_THRESHOLD,
+          threshold,
         }
       );
     }

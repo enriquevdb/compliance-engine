@@ -7,7 +7,7 @@
 import { BaseGate } from './IGate';
 import { GateResult } from './types';
 import { TransactionInput } from '../types';
-import { isStateSupported, isCitySupported } from '../config/rules';
+import { isStateSupported, isCitySupported } from '../database/queries/configQueries';
 
 interface AddressValidationCache {
   [key: string]: boolean; // "state:city" -> isValid
@@ -61,7 +61,7 @@ export class AddressValidationGate extends BaseGate {
       }
     } catch (error) {
       // External service failure - fallback to local validation
-      return this.fallbackValidation(country, state, city, cacheKey);
+      return await this.fallbackValidation(country, state, city, cacheKey);
     }
   }
 
@@ -86,18 +86,18 @@ export class AddressValidationGate extends BaseGate {
       return false;
     }
 
-    if (!isStateSupported(state)) {
+    if (!(await isStateSupported(state))) {
       return false;
     }
 
-    if (!isCitySupported(state, city)) {
+    if (!(await isCitySupported(state, city))) {
       return false;
     }
 
     return true;
   }
 
-  private fallbackValidation(country: string, state: string, city: string, cacheKey: string): GateResult {
+  private async fallbackValidation(country: string, state: string, city: string, cacheKey: string): Promise<GateResult> {
     // Fallback: Use local validation rules
     if (country !== 'US') {
       addressCache[cacheKey] = false;
@@ -108,7 +108,7 @@ export class AddressValidationGate extends BaseGate {
       );
     }
 
-    if (!isStateSupported(state)) {
+    if (!(await isStateSupported(state))) {
       addressCache[cacheKey] = false;
       return this.createFailResult(
         `Unsupported state: ${state}`,
@@ -117,7 +117,7 @@ export class AddressValidationGate extends BaseGate {
       );
     }
 
-    if (!isCitySupported(state, city)) {
+    if (!(await isCitySupported(state, city))) {
       addressCache[cacheKey] = false;
       return this.createFailResult(
         `Unsupported city: ${city} in state ${state}`,

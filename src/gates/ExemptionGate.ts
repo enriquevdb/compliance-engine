@@ -7,7 +7,7 @@
 import { BaseGate } from './IGate';
 import { GateResult } from './types';
 import { TransactionInput, ExemptionData } from '../types';
-import { isCustomerExempt, isItemExempt } from '../config/rules';
+import { isCustomerTypeExempt, isItemCategoryExempt } from '../database/queries/configQueries';
 
 export class ExemptionGate extends BaseGate {
   protected getGateName(): string {
@@ -27,7 +27,7 @@ export class ExemptionGate extends BaseGate {
     // Note: In real system, customer type would come from customer service
     // For now, we'll check if customerId indicates WHOLESALE (simplified)
     const customerType = context?.customerType as string | undefined;
-    if (customerType && isCustomerExempt(customerType)) {
+    if (customerType && (await isCustomerTypeExempt(customerType))) {
       exemptionData.customerExemptions.push(customerType);
     }
 
@@ -35,7 +35,7 @@ export class ExemptionGate extends BaseGate {
     for (const item of items) {
       const itemExemptions: string[] = [];
       
-      if (isItemExempt(item.category, state)) {
+      if (await isItemCategoryExempt(item.category, state)) {
         itemExemptions.push(`${item.category} exempt in ${state}`);
       }
 

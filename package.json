@@ -6,9 +6,15 @@
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc",
+    "start:api": "node dist/api/server.js",
+    "dev:api": "ts-node api/server.ts",
     "test": "jest",
     "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage"
+    "test:coverage": "jest --coverage",
+    "db:up": "docker-compose up -d",
+    "db:down": "docker-compose down",
+    "db:logs": "docker-compose logs -f postgres",
+    "db:migrate": "echo 'Run migrations manually: psql -h localhost -U compliance_user -d compliance_engine -f database/migrations/001_initial_schema.sql && psql -h localhost -U compliance_user -d compliance_engine -f database/migrations/002_seed_data.sql'"
   },
   "keywords": [
     "compliance",
@@ -20,12 +26,19 @@
   "devDependencies": {
     "@types/jest": "^29.5.12",
     "@types/node": "^20.11.24",
+    "@types/express": "^4.17.21",
+    "@types/cors": "^2.8.17",
+    "@types/pg": "^8.10.9",
     "jest": "^29.7.0",
     "ts-jest": "^29.1.2",
+    "ts-node": "^10.9.2",
     "typescript": "^5.3.3"
   },
   "dependencies": {
-    "decimal.js": "^10.4.3"
+    "decimal.js": "^10.4.3",
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "pg": "^8.11.3"
   }
 }
 

@@ -16,12 +16,66 @@ A rule-based compliance engine for real-time fee calculations in e-commerce tran
 
 - Node.js 18+ 
 - npm or yarn
+- Docker (for PostgreSQL database)
 
 ## Installation
 
 ```bash
 npm install
 ```
+
+## Database Setup
+
+The compliance engine uses PostgreSQL for storing configuration data, transactions, and audit trails. The database runs in a Docker container.
+
+### Starting the Database
+
+```bash
+# Start PostgreSQL container
+npm run db:up
+
+# View database logs
+npm run db:logs
+
+# Stop database container
+npm run db:down
+```
+
+### Running Migrations
+
+After starting the database, run the migration scripts to create the schema and seed initial data:
+
+**PowerShell (Windows):**
+```powershell
+Get-Content database/migrations/001_initial_schema.sql | docker exec -i compliance-engine-postgres psql -U compliance_user -d compliance_engine
+Get-Content database/migrations/002_seed_data.sql | docker exec -i compliance-engine-postgres psql -U compliance_user -d compliance_engine
+```
+
+**Bash/Linux/Mac:**
+```bash
+docker exec -i compliance-engine-postgres psql -U compliance_user -d compliance_engine < database/migrations/001_initial_schema.sql
+docker exec -i compliance-engine-postgres psql -U compliance_user -d compliance_engine < database/migrations/002_seed_data.sql
+```
+
+**Using psql directly (if installed):**
+```bash
+psql -h localhost -U compliance_user -d compliance_engine -f database/migrations/001_initial_schema.sql
+psql -h localhost -U compliance_user -d compliance_engine -f database/migrations/002_seed_data.sql
+```
+
+### Database Configuration
+
+The database connection is configured via environment variables. Copy `.env.example` to `.env` and adjust as needed:
+
+```
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=compliance_engine
+DB_USER=compliance_user
+DB_PASSWORD=compliance_pass
+```
+
+**Note:** The compliance engine will automatically connect to the database if available. If the database is not available, it will fall back to hardcoded configuration in `src/config/rules.ts`. This ensures backward compatibility and graceful degradation.
 
 ## Usage
 
@@ -154,6 +208,91 @@ console.log(JSON.stringify(response, null, 2));
 }
 ```
 
+## HTTP API Server
+
+The compliance engine can be run as an HTTP API server for testing with Postman or other HTTP clients.
+
+### Starting the API Server
+
+```bash
+# Development mode (with ts-node)
+npm run dev:api
+
+# Production mode (requires build first)
+npm run build
+npm run start:api
+```
+
+The server will start on `http://localhost:3000` (or the port specified in `PORT` environment variable).
+
+### API Endpoints
+
+#### Health Check
+- **GET** `/health`
+- Returns service status
+
+**Example Response:**
+```json
+{
+  "status": "ok",
+  "service": "compliance-engine-api",
+  "timestamp": "2024-01-15T10:30:00.000Z"
+}
+```
+
+#### Calculate Compliance Fees
+- **POST** `/api/compliance/calculate`
+- Calculates compliance fees for a transaction
+
+**Request Body:**
+```json
+{
+  "transactionId": "txn_123",
+  "merchantId": "merchant_456",
+  "customerId": "customer_789",
+  "destination": {
+    "country": "US",
+    "state": "CA",
+    "city": "Los Angeles"
+  },
+  "items": [
+    {
+      "id": "item_1",
+      "category": "SOFTWARE",
+      "amount": 100.00
+    }
+  ],
+  "totalAmount": 100.00,
+  "currency": "USD",
+  "context": {
+    "customerType": "WHOLESALE"
+  }
+}
+```
+
+**Note:** The `context` field is optional and can be used to pass additional information like customer type for exemptions.
+
+**Response:** Returns ComplianceResponse matching Appendix A format (see Example Output above)
+
+### Testing with Postman
+
+1. **Health Check:**
+   - Method: `GET`
+   - URL: `http://localhost:3000/health`
+
+2. **Valid Transaction:**
+   - Method: `POST`
+   - URL: `http://localhost:3000/api/compliance/calculate`
+   - Headers: `Content-Type: application/json`
+   - Body: Valid transaction JSON (see Request Body above)
+
+3. **Exempt Customer:**
+   - Same as above, but include `"context": { "customerType": "WHOLESALE" }` in body
+
+4. **Invalid Input:**
+   - Same endpoint, but with invalid transaction (wrong currency, missing fields, etc.)
+   - Returns 400 status with validation error
+
 ## Running Tests
 
 ```bash
@@ -171,7 +310,7 @@ npm run test:coverage
 
 ```
 compliance-engine/
-├── src/
+├── src/                    # Library code (ComplianceEngine)
 │   ├── types/              # TypeScript type definitions
 │   ├── gates/              # Gate implementations
 │   │   ├── InputValidationGate.ts
@@ -186,6 +325,15 @@ compliance-engine/
 │   │   └── rules.ts
 │   ├── ComplianceEngine.ts
 │   └── index.ts
+├── api/                    # HTTP API wrapper (independent)
+│   ├── server.ts           # Express server
+│   ├── routes/
+│   │   └── compliance.ts   # Compliance endpoints
+│   ├── middleware/
+│   │   ├── errorHandler.ts # Error handling
+│   │   └── validator.ts    # Request validation
+│   └── types/
+│       └── api.ts         # API-specific types
 ├── src/__tests__/         # Test files
 │   ├── gates/
 │   ├── calculation/

@@ -1,0 +1,23 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: compliance-engine-postgres
+    environment:
+      POSTGRES_USER: ${DB_USER:-compliance_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-compliance_pass}
+      POSTGRES_DB: ${DB_NAME:-compliance_engine}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-compliance_user} -d ${DB_NAME:-compliance_engine}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+

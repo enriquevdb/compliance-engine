@@ -1,5 +1,5 @@
 /**
- * Type definitions matching Appendix B (Input) and Appendix A (Output) exactly
+ * Type definitions matching Appendix B (Input) and Appendix A (Output)
  */
 
 // ============================================================================
