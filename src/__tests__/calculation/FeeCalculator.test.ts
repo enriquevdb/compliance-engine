@@ -10,7 +10,9 @@ import { validTransactionCA, transactionWithExemptItem } from '../fixtures/trans
 describe('FeeCalculator', () => {
   let calculator: FeeCalculator;
 
-  beforeEach(() => {
+  beforeEach(async () => {
+    // Initialize RateTable first (loads from database)
+    await RateTable.initialize();
     calculator = new FeeCalculator();
   });
 

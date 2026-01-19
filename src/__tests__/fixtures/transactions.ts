@@ -160,8 +160,8 @@ export const transactionUnsupportedState: TransactionInput = {
   customerId: 'customer_789',
   destination: {
     country: 'US',
-    state: 'FL', // Unsupported
-    city: 'Miami',
+    state: 'AL',
+    city: 'Montgomery',
   },
   items: [
     {

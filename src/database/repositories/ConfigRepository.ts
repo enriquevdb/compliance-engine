@@ -1,11 +1,11 @@
 /**
  * Configuration Repository
  * Loads configuration data from database (rates, exemptions, thresholds)
- * Provides interface similar to src/config/rules.ts for backward compatibility
+ * All configurations are loaded from the database
  */
 
 import * as configQueries from '../queries/configQueries';
-import { JurisdictionRates } from '../../config/rules';
+import { JurisdictionRates } from '../../types';
 
 export class ConfigRepository {
   private jurisdictionRatesCache: Map<string, JurisdictionRates> | null = null;

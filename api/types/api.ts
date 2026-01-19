@@ -3,8 +3,8 @@
  */
 
 export interface HealthCheckResponse {
-  status: string;
   service: string;
+  status: string;
   timestamp: string;
 }
 

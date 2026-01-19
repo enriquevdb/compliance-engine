@@ -1,0 +1,513 @@
+{
+  "info": {
+    "_postman_id": "66d6092d-2512-4446-ad4d-ed955856f65c",
+    "name": "Compliance Engine",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "33728342"
+  },
+  "item": [
+    {
+      "name": "Health Check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseURL}}/health",
+          "host": [
+            "{{baseURL}}"
+          ],
+          "path": [
+            "health"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Calculate",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n  \"transactionId\": \"txn_123\",\r\n  \"merchantId\": \"merchant_456\",\r\n  \"customerId\": \"customer_789\",\r\n  \"destination\": {\r\n    \"country\": \"US\",\r\n    \"state\": \"CA\",\r\n    \"city\": \"Los Angeles\"\r\n  },\r\n  \"items\": [\r\n    {\r\n      \"id\": \"item_1\",\r\n      \"category\": \"SOFTWARE\",\r\n      \"amount\": 100.00\r\n    }\r\n  ],\r\n  \"totalAmount\": 100.00,\r\n  \"currency\": \"USD\"\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseURL}}/api/compliance/calculate",
+          "host": [
+            "{{baseURL}}"
+          ],
+          "path": [
+            "api",
+            "compliance",
+            "calculate"
+          ]
+        }
+      },
+      "response": [
+        {
+          "name": "Valid CA Transaction",
+          "originalRequest": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"transactionId\": \"txn_123\",\r\n  \"merchantId\": \"merchant_456\",\r\n  \"customerId\": \"customer_789\",\r\n  \"destination\": {\r\n    \"country\": \"US\",\r\n    \"state\": \"CA\",\r\n    \"city\": \"Los Angeles\"\r\n  },\r\n  \"items\": [\r\n    {\r\n      \"id\": \"item_1\",\r\n      \"category\": \"SOFTWARE\",\r\n      \"amount\": 100.00\r\n    }\r\n  ],\r\n  \"totalAmount\": 100.00,\r\n  \"currency\": \"USD\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:3000/api/compliance/calculate",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "3000",
+              "path": [
+                "api",
+                "compliance",
+                "calculate"
+              ]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": null,
+          "header": [
+            {
+              "key": "X-Powered-By",
+              "value": "Express"
+            },
+            {
+              "key": "Access-Control-Allow-Origin",
+              "value": "*"
+            },
+            {
+              "key": "Content-Type",
+              "value": "application/json; charset=utf-8"
+            },
+            {
+              "key": "Content-Length",
+              "value": "1038"
+            },
+            {
+              "key": "ETag",
+              "value": "W/\"40e-oA5Hbgbx18CJd7sv+g6ZslF3fVU\""
+            },
+            {
+              "key": "Date",
+              "value": "Sun, 18 Jan 2026 13:54:07 GMT"
+            },
+            {
+              "key": "Connection",
+              "value": "keep-alive"
+            },
+            {
+              "key": "Keep-Alive",
+              "value": "timeout=5"
+            }
+          ],
+          "cookie": [],
+          "body": "{\n    \"transactionId\": \"txn_123\",\n    \"status\": \"CALCULATED\",\n    \"gates\": [\n        {\n            \"name\": \"ADDRESS_VALIDATION\",\n            \"passed\": true,\n            \"message\": \"Valid address (from cache)\"\n        },\n        {\n            \"name\": \"APPLICABILITY\",\n            \"passed\": true,\n            \"message\": \"Merchant above $100K threshold in CA\"\n        },\n        {\n            \"name\": \"EXEMPTION_CHECK\",\n            \"passed\": true,\n            \"message\": \"No exemptions applied\",\n            \"appliedExemptions\": []\n        }\n    ],\n    \"calculation\": {\n        \"items\": [\n            {\n                \"itemId\": \"item_1\",\n                \"amount\": 100,\n                \"category\": \"SOFTWARE\",\n                \"fees\": {\n                    \"stateRate\": {\n                        \"jurisdiction\": \"CA\",\n                        \"rate\": 0.06,\n                        \"amount\": 6\n                    },\n                    \"categoryModifier\": {\n                        \"category\": \"SOFTWARE\",\n                        \"rate\": 0.01,\n                        \"amount\": 1\n                    },\n                    \"countyRate\": {\n                        \"jurisdiction\": \"Los Angeles County\",\n                        \"rate\": 0.0025,\n                        \"amount\": 0.25\n                    },\n                    \"cityRate\": {\n                        \"jurisdiction\": \"Los Angeles\",\n                        \"rate\": 0.0225,\n                        \"amount\": 2.25\n                    }\n                },\n                \"totalFee\": 9.5\n            }\n        ],\n        \"totalFees\": 9.5,\n        \"effectiveRate\": 0.095\n    },\n    \"auditTrail\": [\n        \"Input validation passed\",\n        \"Valid address (from cache)\",\n        \"Merchant above $100K threshold in CA\",\n        \"No exemptions applied\",\n        \"Applied CA state rate: 6.00%\",\n        \"Applied Los Angeles County county rate: 0.25%\",\n        \"Applied Los Angeles city rate: 2.25%\",\n        \"Applied SOFTWARE category modifier: 1.00%\"\n    ]\n}"
+        },
+        {
+          "name": "Exempt Customer (WHOLESALE)",
+          "originalRequest": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"transactionId\": \"txn_wholesale\",\r\n  \"merchantId\": \"merchant_456\",\r\n  \"customerId\": \"customer_wholesale\",\r\n  \"destination\": {\r\n    \"country\": \"US\",\r\n    \"state\": \"CA\",\r\n    \"city\": \"Los Angeles\"\r\n  },\r\n  \"items\": [\r\n    {\r\n      \"id\": \"item_1\",\r\n      \"category\": \"SOFTWARE\",\r\n      \"amount\": 100.00\r\n    }\r\n  ],\r\n  \"totalAmount\": 100.00,\r\n  \"currency\": \"USD\",\r\n  \"context\": {\r\n    \"customerType\": \"WHOLESALE\"\r\n  }\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:3000/api/compliance/calculate",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "3000",
+              "path": [
+                "api",
+                "compliance",
+                "calculate"
+              ]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": null,
+          "header": [
+            {
+              "key": "X-Powered-By",
+              "value": "Express"
+            },
+            {
+              "key": "Access-Control-Allow-Origin",
+              "value": "*"
+            },
+            {
+              "key": "Content-Type",
+              "value": "application/json; charset=utf-8"
+            },
+            {
+              "key": "Content-Length",
+              "value": "762"
+            },
+            {
+              "key": "ETag",
+              "value": "W/\"2fa-HK4r4+N68cpfJMmbhsN3U1V4CSE\""
+            },
+            {
+              "key": "Date",
+              "value": "Sun, 18 Jan 2026 13:54:56 GMT"
+            },
+            {
+              "key": "Connection",
+              "value": "keep-alive"
+            },
+            {
+              "key": "Keep-Alive",
+              "value": "timeout=5"
+            }
+          ],
+          "cookie": [],
+          "body": "{\n    \"transactionId\": \"txn_wholesale\",\n    \"status\": \"CALCULATED\",\n    \"gates\": [\n        {\n            \"name\": \"ADDRESS_VALIDATION\",\n            \"passed\": true,\n            \"message\": \"Valid address (from cache)\"\n        },\n        {\n            \"name\": \"APPLICABILITY\",\n            \"passed\": true,\n            \"message\": \"Merchant above $100K threshold in CA\"\n        },\n        {\n            \"name\": \"EXEMPTION_CHECK\",\n            \"passed\": true,\n            \"message\": \"1 exemption(s) applied\",\n            \"appliedExemptions\": [\n                \"WHOLESALE\"\n            ]\n        }\n    ],\n    \"calculation\": {\n        \"items\": [\n            {\n                \"itemId\": \"item_1\",\n                \"amount\": 100,\n                \"category\": \"SOFTWARE\",\n                \"fees\": {\n                    \"stateRate\": {\n                        \"rate\": 0,\n                        \"amount\": 0\n                    },\n                    \"categoryModifier\": {\n                        \"category\": \"SOFTWARE\",\n                        \"rate\": 0,\n                        \"amount\": 0\n                    }\n                },\n                \"totalFee\": 0\n            }\n        ],\n        \"totalFees\": 0,\n        \"effectiveRate\": 0\n    },\n    \"auditTrail\": [\n        \"Input validation passed\",\n        \"Valid address (from cache)\",\n        \"Merchant above $100K threshold in CA\",\n        \"1 exemption(s) applied\",\n        \"Item item_1 (SOFTWARE) exempt - no fees applied\"\n    ]\n}"
+        },
+        {
+          "name": "Exempt Item (FOOD in CA)",
+          "originalRequest": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"transactionId\": \"txn_food\",\r\n  \"merchantId\": \"merchant_456\",\r\n  \"customerId\": \"customer_789\",\r\n  \"destination\": {\r\n    \"country\": \"US\",\r\n    \"state\": \"CA\",\r\n    \"city\": \"Los Angeles\"\r\n  },\r\n  \"items\": [\r\n    {\r\n      \"id\": \"item_1\",\r\n      \"category\": \"FOOD\",\r\n      \"amount\": 50.00\r\n    }\r\n  ],\r\n  \"totalAmount\": 50.00,\r\n  \"currency\": \"USD\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:3000/api/compliance/calculate",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "3000",
+              "path": [
+                "api",
+                "compliance",
+                "calculate"
+              ]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": null,
+          "header": [
+            {
+              "key": "X-Powered-By",
+              "value": "Express"
+            },
+            {
+              "key": "Access-Control-Allow-Origin",
+              "value": "*"
+            },
+            {
+              "key": "Content-Type",
+              "value": "application/json; charset=utf-8"
+            },
+            {
+              "key": "Content-Length",
+              "value": "760"
+            },
+            {
+              "key": "ETag",
+              "value": "W/\"2f8-CTwRliminRp3DzE5ceWS0Qp6cvA\""
+            },
+            {
+              "key": "Date",
+              "value": "Sun, 18 Jan 2026 13:56:25 GMT"
+            },
+            {
+              "key": "Connection",
+              "value": "keep-alive"
+            },
+            {
+              "key": "Keep-Alive",
+              "value": "timeout=5"
+            }
+          ],
+          "cookie": [],
+          "body": "{\n    \"transactionId\": \"txn_food\",\n    \"status\": \"CALCULATED\",\n    \"gates\": [\n        {\n            \"name\": \"ADDRESS_VALIDATION\",\n            \"passed\": true,\n            \"message\": \"Valid address (from cache)\"\n        },\n        {\n            \"name\": \"APPLICABILITY\",\n            \"passed\": true,\n            \"message\": \"Merchant above $100K threshold in CA\"\n        },\n        {\n            \"name\": \"EXEMPTION_CHECK\",\n            \"passed\": true,\n            \"message\": \"1 exemption(s) applied\",\n            \"appliedExemptions\": [\n                \"item_1: FOOD exempt in CA\"\n            ]\n        }\n    ],\n    \"calculation\": {\n        \"items\": [\n            {\n                \"itemId\": \"item_1\",\n                \"amount\": 50,\n                \"category\": \"FOOD\",\n                \"fees\": {\n                    \"stateRate\": {\n                        \"rate\": 0,\n                        \"amount\": 0\n                    },\n                    \"categoryModifier\": {\n                        \"category\": \"FOOD\",\n                        \"rate\": 0,\n                        \"amount\": 0\n                    }\n                },\n                \"totalFee\": 0\n            }\n        ],\n        \"totalFees\": 0,\n        \"effectiveRate\": 0\n    },\n    \"auditTrail\": [\n        \"Input validation passed\",\n        \"Valid address (from cache)\",\n        \"Merchant above $100K threshold in CA\",\n        \"1 exemption(s) applied\",\n        \"Item item_1 (FOOD) exempt - no fees applied\"\n    ]\n}"
+        },
+        {
+          "name": "Invalid Currency",
+          "originalRequest": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"transactionId\": \"txn_invalid\",\r\n  \"merchantId\": \"merchant_456\",\r\n  \"customerId\": \"customer_789\",\r\n  \"destination\": {\r\n    \"country\": \"US\",\r\n    \"state\": \"CA\",\r\n    \"city\": \"Los Angeles\"\r\n  },\r\n  \"items\": [\r\n    {\r\n      \"id\": \"item_1\",\r\n      \"category\": \"SOFTWARE\",\r\n      \"amount\": 100.00\r\n    }\r\n  ],\r\n  \"totalAmount\": 100.00,\r\n  \"currency\": \"EUR\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:3000/api/compliance/calculate",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "3000",
+              "path": [
+                "api",
+                "compliance",
+                "calculate"
+              ]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": null,
+          "header": [
+            {
+              "key": "X-Powered-By",
+              "value": "Express"
+            },
+            {
+              "key": "Access-Control-Allow-Origin",
+              "value": "*"
+            },
+            {
+              "key": "Content-Type",
+              "value": "application/json; charset=utf-8"
+            },
+            {
+              "key": "Content-Length",
+              "value": "152"
+            },
+            {
+              "key": "ETag",
+              "value": "W/\"98-I52h+RIzvSh4qUA69acWPkWOzBc\""
+            },
+            {
+              "key": "Date",
+              "value": "Sun, 18 Jan 2026 13:58:47 GMT"
+            },
+            {
+              "key": "Connection",
+              "value": "keep-alive"
+            },
+            {
+              "key": "Keep-Alive",
+              "value": "timeout=5"
+            }
+          ],
+          "cookie": [],
+          "body": "{\n    \"transactionId\": \"txn_invalid\",\n    \"status\": \"REJECTED\",\n    \"gates\": [],\n    \"auditTrail\": [\n        \"InputValidation failed: Unsupported currency: EUR. Only USD is supported\"\n    ]\n}"
+        },
+        {
+          "name": "Unsupported Address",
+          "originalRequest": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"transactionId\": \"txn_unsupported\",\r\n  \"merchantId\": \"merchant_456\",\r\n  \"customerId\": \"customer_789\",\r\n  \"destination\": {\r\n    \"country\": \"US\",\r\n    \"state\": \"AL\",\r\n    \"city\": \"Boston\"\r\n  },\r\n  \"items\": [\r\n    {\r\n      \"id\": \"item_1\",\r\n      \"category\": \"SOFTWARE\",\r\n      \"amount\": 100.00\r\n    }\r\n  ],\r\n  \"totalAmount\": 100.00,\r\n  \"currency\": \"USD\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:3000/api/compliance/calculate",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "3000",
+              "path": [
+                "api",
+                "compliance",
+                "calculate"
+              ]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": null,
+          "header": [
+            {
+              "key": "X-Powered-By",
+              "value": "Express"
+            },
+            {
+              "key": "Access-Control-Allow-Origin",
+              "value": "*"
+            },
+            {
+              "key": "Content-Type",
+              "value": "application/json; charset=utf-8"
+            },
+            {
+              "key": "Content-Length",
+              "value": "261"
+            },
+            {
+              "key": "ETag",
+              "value": "W/\"105-idnGe1IMo/nM3hr/LlfKinU86gU\""
+            },
+            {
+              "key": "Date",
+              "value": "Sun, 18 Jan 2026 13:59:30 GMT"
+            },
+            {
+              "key": "Connection",
+              "value": "keep-alive"
+            },
+            {
+              "key": "Keep-Alive",
+              "value": "timeout=5"
+            }
+          ],
+          "cookie": [],
+          "body": "{\n    \"transactionId\": \"txn_unsupported\",\n    \"status\": \"REJECTED\",\n    \"gates\": [\n        {\n            \"name\": \"ADDRESS_VALIDATION\",\n            \"passed\": false,\n            \"message\": \"Unsupported destination: Miami, FL\"\n        }\n    ],\n    \"auditTrail\": [\n        \"Input validation passed\",\n        \"AddressValidation failed: Unsupported destination: Miami, FL\"\n    ]\n}"
+        },
+        {
+          "name": "Merchant Below Threshold",
+          "originalRequest": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"transactionId\": \"txn_low_merchant\",\r\n  \"merchantId\": \"merchant_789\",\r\n  \"customerId\": \"customer_789\",\r\n  \"destination\": {\r\n    \"country\": \"US\",\r\n    \"state\": \"NY\",\r\n    \"city\": \"New York City\"\r\n  },\r\n  \"items\": [\r\n    {\r\n      \"id\": \"item_1\",\r\n      \"category\": \"SOFTWARE\",\r\n      \"amount\": 100.00\r\n    }\r\n  ],\r\n  \"totalAmount\": 100.00,\r\n  \"currency\": \"USD\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:3000/api/compliance/calculate",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "3000",
+              "path": [
+                "api",
+                "compliance",
+                "calculate"
+              ]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": null,
+          "header": [
+            {
+              "key": "X-Powered-By",
+              "value": "Express"
+            },
+            {
+              "key": "Access-Control-Allow-Origin",
+              "value": "*"
+            },
+            {
+              "key": "Content-Type",
+              "value": "application/json; charset=utf-8"
+            },
+            {
+              "key": "Content-Length",
+              "value": "441"
+            },
+            {
+              "key": "ETag",
+              "value": "W/\"1b9-yaTmQ70OR0RqX55GhRlLOGaqVUE\""
+            },
+            {
+              "key": "Date",
+              "value": "Sun, 18 Jan 2026 14:00:04 GMT"
+            },
+            {
+              "key": "Connection",
+              "value": "keep-alive"
+            },
+            {
+              "key": "Keep-Alive",
+              "value": "timeout=5"
+            }
+          ],
+          "cookie": [],
+          "body": "{\n    \"transactionId\": \"txn_low_merchant\",\n    \"status\": \"REJECTED\",\n    \"gates\": [\n        {\n            \"name\": \"ADDRESS_VALIDATION\",\n            \"passed\": true,\n            \"message\": \"Valid US address (fallback validation)\"\n        },\n        {\n            \"name\": \"APPLICABILITY\",\n            \"passed\": false,\n            \"message\": \"Merchant volume ($50 000) below threshold ($100 000) in NY\"\n        }\n    ],\n    \"auditTrail\": [\n        \"Input validation passed\",\n        \"Valid US address (fallback validation)\",\n        \"Applicability failed: Merchant volume ($50 000) below threshold ($100 000) in NY\"\n    ]\n}"
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseURL",
+      "value": "",
+      "type": "default"
+    }
+  ]
+}

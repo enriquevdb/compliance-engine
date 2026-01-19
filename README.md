@@ -43,25 +43,14 @@ npm run db:down
 
 ### Running Migrations
 
-After starting the database, run the migration scripts to create the schema and seed initial data:
+After starting the database, run the migration script to create the schema and seed initial data:
 
-**PowerShell (Windows):**
-```powershell
-Get-Content database/migrations/001_initial_schema.sql | docker exec -i compliance-engine-postgres psql -U compliance_user -d compliance_engine
-Get-Content database/migrations/002_seed_data.sql | docker exec -i compliance-engine-postgres psql -U compliance_user -d compliance_engine
-```
-
-**Bash/Linux/Mac:**
 ```bash
-docker exec -i compliance-engine-postgres psql -U compliance_user -d compliance_engine < database/migrations/001_initial_schema.sql
-docker exec -i compliance-engine-postgres psql -U compliance_user -d compliance_engine < database/migrations/002_seed_data.sql
+npm run db:migrate
 ```
 
-**Using psql directly (if installed):**
-```bash
-psql -h localhost -U compliance_user -d compliance_engine -f database/migrations/001_initial_schema.sql
-psql -h localhost -U compliance_user -d compliance_engine -f database/migrations/002_seed_data.sql
-```
+This will run all migration files in order. The script uses the same database configuration as the application (via environment variables or defaults).
+
 
 ### Database Configuration
 
@@ -75,7 +64,7 @@ DB_USER=compliance_user
 DB_PASSWORD=compliance_pass
 ```
 
-**Note:** The compliance engine will automatically connect to the database if available. If the database is not available, it will fall back to hardcoded configuration in `src/config/rules.ts`. This ensures backward compatibility and graceful degradation.
+**Note:** The compliance engine requires a database connection to load configuration data (rates, exemptions, thresholds). All configuration is stored in the database.
 
 ## Usage
 
@@ -210,8 +199,6 @@ console.log(JSON.stringify(response, null, 2));
 
 ## HTTP API Server
 
-The compliance engine can be run as an HTTP API server for testing with Postman or other HTTP clients.
-
 ### Starting the API Server
 
 ```bash
@@ -227,22 +214,23 @@ The server will start on `http://localhost:3000` (or the port specified in `PORT
 
 ### API Endpoints
 
-#### Health Check
-- **GET** `/health`
-- Returns service status
+1. **Health Check:**
+   - Method: `GET`
+   - URL: `http://localhost:3000/health`
 
 **Example Response:**
 ```json
 {
-  "status": "ok",
   "service": "compliance-engine-api",
+  "status": "ok",
   "timestamp": "2024-01-15T10:30:00.000Z"
 }
 ```
 
-#### Calculate Compliance Fees
-- **POST** `/api/compliance/calculate`
-- Calculates compliance fees for a transaction
+2. **Calculate:**
+   - Method: `POST`
+   - URL: `http://localhost:3000/api/compliance/calculate`
+   - Headers: `Content-Type: application/json`
 
 **Request Body:**
 ```json
@@ -274,37 +262,62 @@ The server will start on `http://localhost:3000` (or the port specified in `PORT
 
 **Response:** Returns ComplianceResponse matching Appendix A format (see Example Output above)
 
-### Testing with Postman
-
-1. **Health Check:**
-   - Method: `GET`
-   - URL: `http://localhost:3000/health`
-
-2. **Valid Transaction:**
-   - Method: `POST`
-   - URL: `http://localhost:3000/api/compliance/calculate`
-   - Headers: `Content-Type: application/json`
-   - Body: Valid transaction JSON (see Request Body above)
-
-3. **Exempt Customer:**
-   - Same as above, but include `"context": { "customerType": "WHOLESALE" }` in body
-
-4. **Invalid Input:**
-   - Same endpoint, but with invalid transaction (wrong currency, missing fields, etc.)
-   - Returns 400 status with validation error
-
 ## Running Tests
+
+The test suite uses **Jest** as the testing framework and includes unit tests, integration tests, and contract tests covering all major components of the compliance engine.
+
+### Jest Configuration
+
+Jest is configured via `jest.config.js` and uses `ts-jest` to run TypeScript tests directly without compilation. The configuration:
+- Uses `ts-jest` preset for TypeScript support
+- Runs tests in Node.js environment
+- Collects coverage from `src/**/*.ts` files (excluding test files and type definitions)
+- Generates coverage reports in multiple formats: text (console), LCOV, and HTML
+- Coverage reports are saved to the `coverage/` directory
+
+### Running Tests
 
 ```bash
 # Run all tests
 npm test
 
-# Run tests in watch mode
+# Run tests in watch mode (re-runs tests on file changes)
 npm run test:watch
 
-# Run tests with coverage
+# Run tests with coverage report
 npm run test:coverage
 ```
+
+After running `npm run test:coverage`, you can view a detailed HTML coverage report by opening `coverage/index.html` in your browser.
+
+### Test Coverage
+
+The test suite covers all scenarios below:
+
+**Unit Tests:**
+
+- **Gate Tests** (`src/__tests__/gates/`):
+  - `InputValidationGate.test.ts` - Input validation, required fields, currency checks, amount consistency, invalid input handling (Task 3)
+  - `AddressValidationGate.test.ts` - Address validation, jurisdiction checks, external service failure with fallback (Task 3), timeout handling
+  - `ApplicabilityGate.test.ts` - Merchant threshold checks, jurisdiction applicability
+  - `ExemptionGate.test.ts` - Customer-level and item-level exemption handling
+
+- **Calculation Tests** (`src/__tests__/calculation/`):
+  - `FeeCalculator.test.ts` - Multi-layer fee calculation (state, county, city, category modifiers), exemption application, precision handling with 47 items
+
+- **Engine Tests** (`src/__tests__/`):
+  - `ComplianceEngine.test.ts` - End-to-end engine processing, gate orchestration, error handling, different transaction paths
+
+### Test Data
+
+Test fixtures are located in `src/__tests__/fixtures/transactions.ts` and include scenarios for:
+- Valid transactions (CA, NY, TX)
+- Invalid inputs (missing fields, wrong currency, amount mismatches)
+- Merchant threshold scenarios
+- Exemption scenarios (customer-level, item-level)
+- Multiple item transactions
+
+**Note:** Tests require a running PostgreSQL database. Ensure the database is started (`npm run db:up`) and migrations are run (`npm run db:migrate`) before running tests.
 
 ## Project Structure
 
@@ -317,12 +330,22 @@ compliance-engine/
 │   │   ├── AddressValidationGate.ts
 │   │   ├── ApplicabilityGate.ts
 │   │   ├── ExemptionGate.ts
-│   │   └── GateOrchestrator.ts
-│   ├── calculation/       # Fee calculation engine
+│   │   ├── GateOrchestrator.ts
+│   │   ├── IGate.ts
+│   │   └── types.ts
+│   ├── calculation/        # Fee calculation engine
 │   │   ├── RateTable.ts
 │   │   └── FeeCalculator.ts
-│   ├── config/            # Rule configuration
-│   │   └── rules.ts
+│   ├── database/           # Database layer
+│   │   ├── client.ts
+│   │   ├── queries/
+│   │   │   ├── configQueries.ts
+│   │   │   ├── transactionQueries.ts
+│   │   │   └── auditQueries.ts
+│   │   └── repositories/
+│   │       ├── ConfigRepository.ts
+│   │       ├── TransactionRepository.ts
+│   │       └── AuditRepository.ts
 │   ├── ComplianceEngine.ts
 │   └── index.ts
 ├── api/                    # HTTP API wrapper (independent)
@@ -332,8 +355,14 @@ compliance-engine/
 │   ├── middleware/
 │   │   ├── errorHandler.ts # Error handling
 │   │   └── validator.ts    # Request validation
-│   └── types/
-│       └── api.ts         # API-specific types
+│   ├── types/
+│   │   └── api.ts          # API-specific types
+│   └── POSTMAN_GUIDE.md    # Postman testing guide
+├── database/               # Database migrations
+│   ├── migrate.ts          # Migration script
+│   └── migrations/         # SQL migration files
+│       ├── 001_initial_schema.sql
+│       └── 002_seed_data.sql
 ├── src/__tests__/         # Test files
 │   ├── gates/
 │   ├── calculation/
@@ -347,14 +376,14 @@ compliance-engine/
 
 ## Assumptions & Simplifications
 
-### Hardcoded Configuration
+### Database-Driven Configuration
 
-- **Rates:** State, county, city, and category modifier rates are hardcoded in `src/config/rules.ts`
-- **Merchant Thresholds:** Merchant volumes are hardcoded (merchant_456: $2.3M in CA, merchant_789: $50K in NY)
-- **Supported Jurisdictions:** CA, NY, TX states with specific cities
-- **Exemption Rules:** WHOLESALE customers and FOOD category in CA
+- **Rates:** State, county, city, and category modifier rates are loaded from the database
+- **Merchant Thresholds:** Merchant volumes are stored in the database
+- **Supported Jurisdictions:** States and cities are configured in the database
+- **Exemption Rules:** Customer and item exemptions are stored in the database
 
-**Real System:** Would load from database/API
+**Note:** Configuration data is seeded via database migrations (see `database/migrations/002_seed_data.sql`)
 
 ### Currency Support
 
@@ -400,25 +429,57 @@ compliance-engine/
 - **NY:** 4% state, 0.5% county, 1% city (New York City)
 - **Category Modifiers:** SOFTWARE +1%, PHYSICAL_GOODS +0%
 
-## Future Improvements
+## Future Improvements (From high to low priority)
 
-### High Priority
+1. **JWT Authentication:** Add JWT token-based authentication to API endpoints for secure access
+2. **Redis Caching Layer:** Upgrade from in-memory cache to Redis for address validation results and rate lookups (currently uses in-memory cache)
+3. **Detailed Logging:** Enhanced structured logging with request IDs, correlation IDs, execution times, and detailed error context
+4. **Metrics & Monitoring:** Extract metrics from structured logs (gate pass rates, execution times)
+5. **API Rate Limiting:** Implement rate limiting to prevent API abuse and ensure fair usage
+6. **API Documentation:** Generate Swagger/OpenAPI documentation for API endpoints
+7. **Multi-Currency Support:** Support currencies beyond USD with exchange rate handling
+8. **Customer Service Integration:** Fetch customer data from customer service API (currently accepts customer type via context parameter)
+9. **Rate Hot-Reloading:** Support updating rates without restart (currently requires restart to reload RateTable)
+10. **Error Tracking:** Integrate error tracking service (e.g., Sentry) for production error monitoring
+11. **Batch Processing:** Support batch transaction processing for improved throughput
 
-1. **Database Integration:** Load rates, thresholds, and exemptions from database
-2. **Caching Layer:** Redis cache for address validation results and rate lookups
-3. **Metrics & Monitoring:** Extract metrics from structured logs (gate pass rates, execution times)
 
-### Medium Priority
 
-4. **Multi-Currency Support:** Support currencies beyond USD with exchange rate handling
-5. **Customer Service Integration:** Fetch customer data from customer service API
-6. **Rate Hot-Reloading:** Support updating rates without restart
+## Why Gate Pattern?
 
-### Low Priority
+### 1. Deterministic Execution Flow
 
-7. **Plugin Architecture:** Runtime plugin loading for gates (not in current scope)
-8. **Full Circuit Breaker:** Complete circuit breaker implementation for external services
-9. **Distributed State:** Support shared state for circuit breakers in distributed systems
+- Sequential, predictable execution order
+- Easy to debug: "Gate X failed" is immediately clear
+- Execution order is explicit in code
+- No hidden rule evaluation logic
+
+### 2. Explicit Checkpoints
+
+- Each gate is a clear checkpoint
+- Failure point is obvious: "AddressValidationGate failed"
+- Easy to add logging/observability at each checkpoint
+- Clear separation between validation, applicability, exemptions, calculation
+
+### 3. Easier Unit Testing
+
+- Each gate is independently testable
+- Test InputValidationGate with various invalid inputs
+- Test AddressValidationGate with different addresses
+- Mock dependencies easily (e.g., external service)
+
+### 4. Lower Cognitive Load
+
+- Sequential flow is easy to understand
+- Code reads like: "Validate input → Validate address → Check applicability → Check exemptions → Calculate fees"
+- New developers can understand the flow quickly
+
+### 5. Better Observability
+
+- Gate-level metrics and logging
+- "AddressValidationGate took 50ms"
+- "ApplicabilityGate failed 2% of the time"
+- Clear audit trail: "Gate X passed/failed with message Y"
 
 ## Architecture
 
@@ -426,11 +487,9 @@ See [docs/architecture.md](docs/architecture.md) for detailed architecture docum
 
 - System architecture diagram
 - Component design
-- Gate pattern rationale
-- Extensibility strategy
-- Observability approach
+- Gate pattern implementation
 - Error handling & resilience patterns
-- API contracts (Appendix A & B)
+- Data flow
 
 ## License
 

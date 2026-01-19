@@ -4,7 +4,7 @@
  * Loaded once at startup, never mutated during execution
  */
 
-import { JurisdictionRates } from '../config/rules';
+import { JurisdictionRates } from '../types';
 import * as configQueries from '../database/queries/configQueries';
 
 export class RateTable {

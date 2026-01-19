@@ -95,4 +95,14 @@ export interface MerchantData {
   volumeByState: Map<string, number>; // state -> volume
 }
 
+// ============================================================================
+// CONFIGURATION TYPES
+// ============================================================================
+
+export interface JurisdictionRates {
+  stateRate: number;
+  countyRate?: number; // Optional, only for specific counties
+  cityRate?: number; // Optional, only for specific cities
+}
+
 

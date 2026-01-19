@@ -14,7 +14,7 @@
     "db:up": "docker-compose up -d",
     "db:down": "docker-compose down",
     "db:logs": "docker-compose logs -f postgres",
-    "db:migrate": "echo 'Run migrations manually: psql -h localhost -U compliance_user -d compliance_engine -f database/migrations/001_initial_schema.sql && psql -h localhost -U compliance_user -d compliance_engine -f database/migrations/002_seed_data.sql'"
+    "db:migrate": "ts-node database/migrate.ts"
   },
   "keywords": [
     "compliance",

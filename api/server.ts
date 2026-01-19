@@ -26,8 +26,8 @@ app.use((req: Request, res: Response, next) => {
 // Health check endpoint
 app.get('/health', (req: Request, res: Response) => {
   const response: HealthCheckResponse = {
-    status: 'ok',
     service: 'compliance-engine-api',
+    status: 'ok',
     timestamp: new Date().toISOString(),
   };
   res.json(response);
