@@ -415,8 +415,8 @@ compliance-engine/
 
 ### Merchant Thresholds
 
-- **merchant_456:** $2.3M in CA (above $100K threshold) ✅
-- **merchant_789:** $50K in NY (below $100K threshold) ❌
+- **merchant_456:** $2.3M in CA (above $100K threshold)
+- **merchant_789:** $50K in NY (below $100K threshold)
 
 ### Exemptions
 
