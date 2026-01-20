@@ -27,6 +27,7 @@ npm install
 ## Database Setup
 
 The compliance engine uses PostgreSQL for storing configuration data, transactions, and audit trails. The database runs in a Docker container.
+Make sure that docker is installed before the next step.
 
 ### Starting the Database
 
