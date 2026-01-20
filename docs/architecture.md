@@ -14,17 +14,14 @@ flowchart TD
     
     AVGate -->|Pass| AppGate[ApplicabilityGate]
     AVGate -->|Fail| Reject
-    AVGate -->|Service Failure| Fallback[Fallback Validation]
-    Fallback -->|Pass| AppGate
-    Fallback -->|Fail| Reject
     
     AppGate -->|Pass| ExGate[ExemptionGate]
     AppGate -->|Fail| Reject
     
-    ExGate -->|Pass| Calc[FeeCalculator]
+    ExGate -->|Pass + Exemption Data| Calc[FeeCalculator]
     ExGate -->|Fail| Reject
     
-    Calc -->|Exemption Data| RateTable[RateTable<br/>Immutable]
+    Calc -->|Queries Rates| RateTable[RateTable<br/>Immutable]
     Calc -->|Fee Calculation| Response[ComplianceResponse<br/>Appendix A]
     
     style IVGate fill:#e1f5ff
@@ -57,15 +54,17 @@ flowchart TD
 **Component:** `AddressValidationGate`
 
 **Responsibilities:**
-- Validates destination against supported jurisdictions
-- Simulates external service call with timeout handling
-- Implements fallback validation when external service fails
-- Caches validation results for performance
+- Validates destination against supported jurisdictions using database queries
+- Checks in-memory cache first for performance optimization
+- Calls database service with 5-second timeout handling
+- Caches validation results (state:city combinations) for future requests
+- Returns DEPENDENCY error when database service is unavailable
 
 **Resilience Pattern:**
-- Timeout + fallback (not a full circuit breaker)
-- Falls back to local validation rules on service failure
-- Error type: 'DEPENDENCY' when service fails
+- Cache-first strategy to reduce database load
+- Database service timeout (5 seconds) to prevent hanging requests
+- On database failure (timeout or error), rejects transaction with DEPENDENCY error type
+- No fallback validation - system requires database service availability
 
 ### 3. Applicability Layer
 
@@ -174,25 +173,29 @@ Gates are registered in `GateOrchestrator` constructor. New gates can be added w
 
 #### Address Validation Service Failure
 
-**Pattern:** Timeout + Fallback (inspired by circuit breakers, not full implementation)
+**Pattern:** Cache-First with Database Service Timeout
 
 **Behavior:**
-1. Attempt external service call with timeout (100ms)
-2. On timeout/failure, fall back to local validation rules
-3. Cache result for future requests
-4. Return DEPENDENCY error type if fallback also fails
+1. Check in-memory cache first (key: "state:city")
+2. If cache miss, attempt database service call with 5-second timeout
+3. On successful database response, cache result (valid/invalid)
+4. On database timeout or error, reject transaction with DEPENDENCY error type
+5. No fallback validation - system requires database service availability
 
-**Why not full circuit breaker?**
-- No shared state across instances
-- No failure threshold tracking
-- No half-open state
-- Simpler implementation for current scope
+**Error Handling:**
+- Database service failures (timeout, connection errors) result in DEPENDENCY error
+- Transaction is rejected when database service is unavailable
+- Error details logged for monitoring purposes
 
-**Future:** Could evolve to full circuit breaker if needed.
+**Cache Strategy:**
+- Simple in-memory cache (no expiration)
+- Cache key format: "state:city"
+- Reduces database load for frequently validated addresses
 
 ### Graceful Degradation
 
-- External service failure → Fallback to local rules
+- Database service failure → Reject with DEPENDENCY error (requires service availability)
+- Cache hits → Avoid database calls for previously validated addresses
 - Missing rate data → Default to 0% (with audit trail)
 - Invalid input → Clear error message in response
 
