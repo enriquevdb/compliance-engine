@@ -95,11 +95,17 @@ export class FeeCalculator {
     const itemFeesSum = itemCalculations.reduce((sum, item) => sum + item.totalFee, 0);
     const tolerance = 0.01;
     if (Math.abs(itemFeesSum - totalFeesRounded) > tolerance) {
-      // Adjust last item to match total (distribute rounding error)
+      // Adjust largest non-exempt item to match total (distribute rounding error)
       const difference = totalFeesRounded - itemFeesSum;
       if (itemCalculations.length > 0) {
-        const lastItem = itemCalculations[itemCalculations.length - 1];
-        lastItem.totalFee = parseFloat((lastItem.totalFee + difference).toFixed(2));
+        // Find the largest non-exempt item (has fees > 0)
+        const nonExemptItems = itemCalculations.filter(item => item.totalFee > 0);
+        if (nonExemptItems.length > 0) {
+          const largestItem = nonExemptItems.reduce((max, item) =>
+            item.totalFee > max.totalFee ? item : max
+          );
+          largestItem.totalFee = parseFloat((largestItem.totalFee + difference).toFixed(2));
+        }
       }
     }
 

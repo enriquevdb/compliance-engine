@@ -55,7 +55,7 @@ export class ComplianceEngine {
       this.transactionRepository = new TransactionRepository();
       this.auditRepository = new AuditRepository();
     } catch (error) {
-      console.warn('Database not available, falling back to in-memory configuration:', error);
+      console.warn('Database not available:', error);
       // If database fails, RateTable won't be initialized and FeeCalculator will fail
       // This is intentional - we require database for rate loading
       this.transactionRepository = null;
